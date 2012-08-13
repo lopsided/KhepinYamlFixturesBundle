@@ -122,6 +122,7 @@ class YamlLoader {
         $purger = new $purge_class($this->getManager($persistence));
         $executor = new $purge_class($this->getManager($persistence), $purger);
         // purge
+        $purger->setPurgeMode(2); // this forces a truncate rather than a delete
         $executor->purge();
     }
 
