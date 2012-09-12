@@ -53,14 +53,34 @@ abstract class AbstractFixture {
         if(!$this->hasTag($tags)){
             return;
         }
+
         $this->manager = $manager;
         $class = $this->file['model'];
         // Get the fields that are not "associations"
+        /** @var \Doctrine\ORM\Mapping\ClassMetadataInfo $metadata */
         $metadata = $this->getMetaDataForClass($class);
 
+        // if generates the id then store the generator type
+        if ($metadata->usesIdGenerator()) {
+            $idGeneratorType = $metadata->isIdGeneratorIdentity() ? \Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_IDENTITY :
+                ($metadata->isIdGeneratorSequence() ? \Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_SEQUENCE :
+                ($metadata->isIdGeneratorTable() ? \Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_TABLE : false));
+        }
+
         foreach ($this->file['fixtures'] as $reference => $fixture_data) {
+
             $object = $this->createObject($class, $fixture_data, $metadata);
             $this->loader->setReference($reference, $object);
+
+            if ($metadata->usesIdGenerator() && $idGeneratorType) {
+                // if an id has been set in the fixture data then set the generator type to none so the fixture id gets used
+                if (isset($fixture_data['id']) && $fixture_data['id'] > 0) {
+                    $metadata->setIdGeneratorType(\Doctrine\ORM\Mapping\ClassMetadata::GENERATOR_TYPE_NONE);
+                } else {
+                    $metadata->setIdGeneratorType($idGeneratorType);
+                }
+            }
+
             if(!$this->isReverseSaveOrder()){
                 $manager->persist($object);
             }
